@@ -1,0 +1,61 @@
+name: Install and Expose Kasm
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  setup-kasm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Environment
+      run: |
+        sudo mkdir -p /kasm/local/storage
+        sudo mkdir -p ./profiles
+        echo "DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}" >> $GITHUB_ENV
+        echo "DOCKER_HUB_PASSWORD=${{ secrets.DOCKER_HUB_PASSWORD }}" >> $GITHUB_ENV
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+    - name: Run Kasm
+      run: |
+        docker run -d \
+          --name kasm \
+          --privileged \
+          -e KASM_PORT=443 \
+          -e DOCKER_HUB_USERNAME=${{ env.DOCKER_HUB_USERNAME }} \
+          -e DOCKER_HUB_PASSWORD=${{ env.DOCKER_HUB_PASSWORD }} \
+          -e DOCKER_MTU=1500 \
+          -v /kasm/local/storage:/opt \
+          -v ${{ github.workspace }}/profiles:/profiles \
+          -v ${{ github.workspace }}/dev/input:/dev/input \
+          -v ${{ github.workspace }}/run/udev/data:/run/udev/data \
+          -p 3000:3000 \
+          -p 3001:443 \
+          --restart unless-stopped \
+          lscr.io/linuxserver/kasm:latest
+
+    - name: Install ngrok
+      run: |
+        curl -s https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar zx
+        ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+
+    - name: Start ngrok tunnel for port 3000
+      run: |
+        nohup ./ngrok http 3000 &
+        sleep 10 # Wait for ngrok to initialize
+        curl --silent --show-error http://localhost:4040/api/tunnels | jq '.tunnels[0].public_url'
+
+    - name: Start ngrok tunnel for port 3001
+      run: |
+        nohup ./ngrok http 3001 &
+        sleep 10 # Wait for ngrok to initialize
+        curl --silent --show-error http://localhost:4040/api/tunnels | jq '.tunnels[1].public_url'
