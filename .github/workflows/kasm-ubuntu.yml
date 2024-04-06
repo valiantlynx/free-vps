@@ -48,16 +48,16 @@ jobs:
         curl -s https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar zx
         ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Start ngrok tunnel for port 3000 (HTTPS)
+    - name: Start ngrok tunnel for port 3000
       run: |
-        nohup ./ngrok http https://localhost:3000 -bind-tls=true &
+        nohup ./ngrok http https://localhost:3000 &
         sleep 10 # Wait for ngrok to initialize
         echo "Tunnel for Kasm on port 3000 established:"
         curl --silent --show-error http://localhost:4040/api/tunnels | jq '.tunnels[] | select(.config.addr == "https://localhost:3000") | .public_url'
 
-    - name: Start ngrok tunnel for port 3001 (HTTPS)
+    - name: Start ngrok tunnel for port 3001
       run: |
-        nohup ./ngrok http https://localhost:3001 -bind-tls=true &
+        nohup ./ngrok http https://localhost:3001 &
         sleep 10 # Wait for ngrok to initialize
         echo "Tunnel for Kasm on port 3001 established:"
         curl --silent --show-error http://localhost:4040/api/tunnels | jq '.tunnels[] | select(.config.addr == "https://localhost:3001") | .public_url'
